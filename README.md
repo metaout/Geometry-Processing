@@ -7,7 +7,8 @@
   * A*
   * 熱拡散による測地距離計算 (The Heat Method for
 Distance Computation. Crane, K. et al. 2017)
-
+　![dist](/images/ketten_dist.png)
+ 
 * feature.hpp
   * 平均曲率
   * ガウス曲率
