@@ -15,6 +15,15 @@
   * Wave Kernel Signature (The Wave Kernel Signature: A Quantum Mechanical Approach to Shape Analysis. Aubry, M. et al. 2011)
   * ![wks](/images/wks.gif)
   
+* chaos.hpp
+  * ロジスティク写像
+  * 池田写像
+  * ティンカーベル写像
+  * ボグダノフ写像
+  * Thomas' cyclically symmetric attractor
+  * ジンジャーブレッドマン写像
+  * ![chaos](/images/chaos.gif)
+ 
 * halfedge.hpp
   * ハーフエッジデータ構造
   
