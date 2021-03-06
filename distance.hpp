@@ -1,9 +1,15 @@
 #pragma once
 #include <utility>
 #include <queue>
-#include <Eigen/Eigen>
 
+#include "geoproc.hpp"
 #include "halfedge.hpp"
+
+#if __has_include("Eigen/Eigen")
+#include "Eigen/Core"
+#include "Eigen/Sparse"
+#define EIGEN_INCLUDE
+#endif
 
 namespace gp {
 	std::vector<size_t> src2trgPath(const std::vector<std::pair<size_t, double>>& path, size_t src, size_t trg) {
@@ -32,7 +38,7 @@ namespace gp {
 			search.pop();
 
 			for (auto& u : heds::oneringNeighbs(mesh.verts[v])) {
-				double dist = (u->pos.eig - mesh.verts[v]->pos.eig).norm();
+				double dist = (u->pos.glm - mesh.verts[v]->pos.glm).length();
 				if (min_dist[u->id] > d + dist) {
 					min_dist[u->id] = d + dist;
 					search.push(std::pair(u->id, min_dist[u->id]));
@@ -44,6 +50,68 @@ namespace gp {
 		return path;
 	}
 
+	std::vector<std::pair<size_t, double>> p2pDijkstraPath(const heds::Mesh& mesh, const size_t src, const size_t trg) {
+		std::vector<double> min_dist(mesh.getNumVertices(), std::numeric_limits<double>::max());
+		min_dist[src] = 0;
+
+		using node = std::pair<size_t, double>;
+		auto compare = [](node& l, node& r) {return l.second > r.second; };
+		std::priority_queue<node, std::vector<node>, decltype(compare)> search;
+		search.push(std::pair(src, 0.0));
+		std::vector<std::pair<size_t, double>> path(mesh.getNumVertices(), { 0, -1.0 });
+
+		while (true) {
+			if (search.size() == 0) break;
+			auto [v, d] = search.top();
+			if (v == trg) break;
+			search.pop();
+
+			for (auto& u : heds::oneringNeighbs(mesh.verts[v])) {
+				double dist = d + (u->pos.glm - mesh.verts[v]->pos.glm).length();
+
+				if (min_dist[u->id] > dist) {
+					min_dist[u->id] = dist;
+					search.push(std::pair(u->id, dist));
+					path[u->id] = { v, dist };
+				}
+			}
+		}
+
+		return path;
+	}
+	
+	std::vector<std::pair<size_t, double>> p2pAstarPath(const heds::Mesh& mesh, const size_t src, const size_t trg) {
+		std::vector<double> min_dist(mesh.getNumVertices(), std::numeric_limits<double>::max());
+		min_dist[src] = (mesh.verts[trg]->pos.glm - mesh.verts[src]->pos.glm).length();
+
+		using node = std::tuple<size_t, double, double>;
+		auto compare = [](node& l, node& r) {return std::get<2>(l) > std::get<2>(r); };
+		std::priority_queue<node, std::vector<node>, decltype(compare)> search;
+		search.push(node(src, 0.0, min_dist[src]));
+		std::vector<std::pair<size_t, double>> path(mesh.getNumVertices(), { 0, -1.0 });
+
+		while (true) {
+			if (search.size() == 0) break;
+			auto [v, d, h] = search.top();
+			if (v == trg) return path;
+			search.pop();
+			
+			for (auto& u : heds::oneringNeighbs(mesh.verts[v])) {
+				double dist = d + (u->pos.glm - mesh.verts[v]->pos.glm).length();
+				double heur = dist + (mesh.verts[trg]->pos.glm - u->pos.glm).length();
+
+				if (min_dist[u->id] > heur) {
+					min_dist[u->id] = heur;
+					search.push(node(u->id, dist, heur));
+					path[u->id] = { v, dist };
+				}
+			}
+		}
+
+		return path;
+	}
+
+	#ifdef EIGEN_INCLUDE
 	Eigen::VectorXd dijkstraDist(const heds::Mesh& mesh, const std::vector<size_t> src) {
 		auto path = dijkstraPath(mesh, src);
 		Eigen::VectorXd dist(mesh.getNumVertices());
@@ -111,67 +179,5 @@ namespace gp {
 
 		return dist;
 	}
-
-	std::vector<std::pair<size_t, double>> p2pDijkstraPath(const heds::Mesh& mesh, const size_t src, const size_t trg) {
-		std::vector<double> min_dist(mesh.getNumVertices(), std::numeric_limits<double>::max());
-		min_dist[src] = 0;
-
-		using node = std::pair<size_t, double>;
-		auto compare = [](node& l, node& r) {return l.second > r.second; };
-		std::priority_queue<node, std::vector<node>, decltype(compare)> search;
-		search.push(std::pair(src, 0.0));
-		std::vector<std::pair<size_t, double>> path(mesh.getNumVertices(), { 0, -1.0 });
-
-		while (true) {
-			if (search.size() == 0) break;
-			auto [v, d] = search.top();
-			if (v == trg) break;
-			search.pop();
-
-			for (auto& u : heds::oneringNeighbs(mesh.verts[v])) {
-				double dist = d + (u->pos.eig - mesh.verts[v]->pos.eig).norm();
-
-				if (min_dist[u->id] > dist) {
-					min_dist[u->id] = dist;
-					search.push(std::pair(u->id, dist));
-					path[u->id] = { v, dist };
-				}
-			}
-		}
-
-		return path;
-	}
-	
-	std::vector<std::pair<size_t, double>> p2pAstarPath(const heds::Mesh& mesh, const size_t src, const size_t trg) {
-		std::vector<double> min_dist(mesh.getNumVertices(), std::numeric_limits<double>::max());
-		min_dist[src] = (mesh.verts[trg]->pos.eig - mesh.verts[src]->pos.eig).norm();
-
-		using node = std::tuple<size_t, double, double>;
-		auto compare = [](node& l, node& r) {return std::get<2>(l) > std::get<2>(r); };
-		std::priority_queue<node, std::vector<node>, decltype(compare)> search;
-		search.push(node(src, 0.0, min_dist[src]));
-		std::vector<std::pair<size_t, double>> path(mesh.getNumVertices(), { 0, -1.0 });
-
-		while (true) {
-			if (search.size() == 0) break;
-			auto [v, d, h] = search.top();
-			if (v == trg) return path;
-			search.pop();
-			
-			for (auto& u : heds::oneringNeighbs(mesh.verts[v])) {
-				double dist = d + (u->pos.eig - mesh.verts[v]->pos.eig).norm();
-				double heur = dist + (mesh.verts[trg]->pos.eig - u->pos.eig).norm();
-
-				if (min_dist[u->id] > heur) {
-					min_dist[u->id] = heur;
-					search.push(node(u->id, dist, heur));
-					path[u->id] = { v, dist };
-				}
-			}
-		}
-
-		return path;
-	}
-
-
+	#endif
 }

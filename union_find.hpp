@@ -3,7 +3,6 @@
 #include <numeric>
 #include <iostream>
 #include <vector>
-#include <unordered_set>
 
 namespace gp {
 	class UnionFind {
@@ -11,11 +10,11 @@ namespace gp {
 		std::vector<size_t> parents;
 
 	public:
-		UnionFind(size_t n) : numNode(n), parents(n) {
+		UnionFind(const size_t n) : numNode(n), parents(n) {
 			std::iota(parents.begin(), parents.end(), 0);
 		}
 
-		size_t root(size_t node) {
+		size_t root(const size_t node) {
 			if (node == parents[node]) {
 				return node;
 			} else {
@@ -23,7 +22,7 @@ namespace gp {
 			}
 		}
 
-		bool unite(size_t lnode, size_t rnode) {
+		bool unite(const size_t lnode, const size_t rnode) {
 			size_t lr = root(lnode), rr = root(rnode);
 			if (lr == rr) return false;
 
@@ -31,7 +30,7 @@ namespace gp {
 			return true;
 		}
 
-		bool same(size_t lnode, size_t rnode) {
+		bool same(const size_t lnode, const size_t rnode) {
 			return root(lnode) == root(rnode);
 		}
 	};
